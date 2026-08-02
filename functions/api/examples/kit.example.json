@@ -1,0 +1,14 @@
+{
+  "style": "Bande dessinée franco-belge moderne, traits encrés nets, ombrages doux, palette légèrement désaturée tirant vers les tons chauds.",
+  "format": "Planche webtoon verticale, cases empilées, pas de gouttières blanches épaisses.",
+  "size": "1024x1536",
+  "quality": "high",
+  "rules": [
+    "Respecter strictement l'apparence des personnages fournie en référence (visage, coiffure, morphologie).",
+    "Ne jamais incruster de texte, bulle de dialogue ou onomatopée dans l'image.",
+    "Cadrage cinématographique : varier les échelles de plan (plan large, plan rapproché, gros plan) selon l'action décrite.",
+    "Garder une cohérence de lumière et de météo avec le contexte de scène fourni."
+  ],
+  "negative_prompt": "flou, watermark, texte, logo, mains déformées, doigts en trop, style photo-réaliste, 3D",
+  "continuity_notes": "Les décors doivent rester visuellement cohérents avec les fiches de lieux fournies (mêmes couleurs de murs, mêmes meubles, même agencement)."
+}
