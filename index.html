@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atelier BD — Générateur de planches</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#17171b;
+    --panel:#1f2024;
+    --panel-2:#26272c;
+    --border:#34353b;
+    --text:#ece8e1;
+    --text-dim:#9c9a96;
+    --accent:#e8a33d;
+    --accent-dim:#b9832e;
+    --success:#6fa987;
+    --error:#d9636b;
+    --running:#6fa0d9;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    font-size:15px;
+    line-height:1.5;
+    min-height:100vh;
+  }
+  ::selection{background:var(--accent);color:#17171b;}
+  a{color:var(--accent);}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0 0 .4em;}
+  button, input, textarea, select{font-family:inherit;font-size:14px;color:var(--text);}
+  button{
+    cursor:pointer;
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:8px;
+    padding:.6em 1em;
+    transition:background .15s, border-color .15s, transform .05s;
+  }
+  button:hover:not(:disabled){border-color:var(--accent-dim);}
+  button:active:not(:disabled){transform:translateY(1px);}
+  button:disabled{opacity:.45;cursor:not-allowed;}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#1a1200;font-weight:600;}
+  button.primary:hover:not(:disabled){background:#f3ae4c;}
+  button.danger{border-color:var(--error);}
+  button.danger:hover:not(:disabled){background:rgba(217,99,107,.15);}
+  input[type=text], input[type=number], input[type=search], textarea, select{
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:.55em .7em;
+    width:100%;
+  }
+  textarea{resize:vertical;font-family:'IBM Plex Mono',monospace;font-size:13px;}
+  label{display:block;font-size:13px;color:var(--text-dim);margin-bottom:.3em;}
+  .field{margin-bottom:1em;}
+  .row{display:flex;gap:1em;flex-wrap:wrap;}
+  .row > .field{flex:1;min-width:160px;}
+  code, .mono{font-family:'IBM Plex Mono',monospace;}
+
+  /* ---------- layout ---------- */
+  header.top{
+    position:sticky;top:0;z-index:20;
+    background:linear-gradient(180deg, var(--bg) 80%, transparent);
+    border-bottom:1px solid var(--border);
+    padding:1em 1.5em .8em;
+    backdrop-filter:blur(6px);
+  }
+  .brand{display:flex;align-items:baseline;gap:.6em;flex-wrap:wrap;}
+  .brand h1{font-size:1.4rem;color:var(--text);}
+  .brand .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;color:var(--accent);text-transform:uppercase;}
+  .status-strip{display:flex;gap:1.4em;margin-top:.5em;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-dim);flex-wrap:wrap;}
+  .status-strip b{color:var(--text);}
+
+  nav.tabs{display:flex;gap:.4em;padding:0 1.5em;margin-top:.9em;overflow-x:auto;}
+  nav.tabs button{
+    background:transparent;border:1px solid transparent;border-bottom:2px solid transparent;
+    border-radius:0;padding:.6em .3em;white-space:nowrap;color:var(--text-dim);font-weight:500;
+  }
+  nav.tabs button .num{font-family:'IBM Plex Mono',monospace;color:var(--accent);margin-right:.4em;}
+  nav.tabs button.active{color:var(--text);border-bottom-color:var(--accent);}
+  nav.tabs button:hover:not(.active){color:var(--text);}
+
+  main{max-width:1080px;margin:0 auto;padding:1.5em;}
+  section.panel{display:none;}
+  section.panel.active{display:block;animation:fade .18s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:1.2em;margin-bottom:1.2em;}
+  .card h2{font-size:1.05rem;}
+  .card h2 .num{font-family:'IBM Plex Mono',monospace;color:var(--accent);font-weight:500;margin-right:.35em;}
+  .help{color:var(--text-dim);font-size:13px;margin:-.3em 0 1em;}
+
+  /* ---------- characters / locations grid ---------- */
+  .ref-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.9em;margin-top:1em;}
+  .ref-card{background:var(--panel-2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column;}
+  .ref-card img{width:100%;aspect-ratio:1/1;object-fit:cover;background:#000;display:block;}
+  .ref-card .ref-body{padding:.6em .7em;display:flex;flex-direction:column;gap:.4em;}
+  .ref-card input[type=text]{padding:.35em .5em;font-size:13px;}
+  .ref-card textarea{min-height:60px;font-size:12px;}
+  .ref-card .key{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-dim);}
+  .ref-card .ref-actions{display:flex;gap:.4em;}
+  .ref-card .ref-actions button{flex:1;padding:.35em;font-size:12px;}
+  .empty-hint{color:var(--text-dim);font-size:13px;padding:1.2em;text-align:center;border:1px dashed var(--border);border-radius:var(--radius);}
+
+  /* ---------- pages table ---------- */
+  .table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{text-align:left;background:var(--panel-2);color:var(--text-dim);font-weight:500;padding:.6em .7em;border-bottom:1px solid var(--border);white-space:nowrap;}
+  tbody td{padding:.55em .7em;border-bottom:1px solid var(--border);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:rgba(255,255,255,.02);}
+  .badge{display:inline-flex;align-items:center;gap:.35em;padding:.2em .55em;border-radius:99px;font-size:11px;font-family:'IBM Plex Mono',monospace;border:1px solid var(--border);}
+  .badge.pending{color:var(--text-dim);}
+  .badge.running{color:var(--running);border-color:var(--running);}
+  .badge.done{color:var(--success);border-color:var(--success);}
+  .badge.error{color:var(--error);border-color:var(--error);}
+  .chip{display:inline-block;background:var(--panel-2);border:1px solid var(--border);border-radius:99px;padding:.1em .55em;font-size:11px;margin:1px;}
+  .chip.missing{border-color:var(--error);color:var(--error);}
+  .thumb{width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--border);display:block;}
+  .row-actions{display:flex;gap:.35em;flex-wrap:wrap;}
+  .row-actions button{padding:.3em .55em;font-size:11px;}
+  .prompt-cell{max-width:240px;color:var(--text-dim);}
+
+  /* ---------- generation panel ---------- */
+  .gen-actions{display:flex;gap:.6em;flex-wrap:wrap;margin-bottom:1em;}
+  .progress-bar{height:8px;border-radius:99px;background:var(--panel-2);border:1px solid var(--border);overflow:hidden;margin-bottom:.6em;}
+  .progress-bar > div{height:100%;background:var(--accent);width:0%;transition:width .25s ease;}
+  .progress-counts{display:flex;gap:1.2em;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-dim);margin-bottom:1em;flex-wrap:wrap;}
+  .progress-counts b{color:var(--text);}
+
+  .log-panel{
+    background:#0f0f12;border:1px solid var(--border);border-radius:var(--radius);
+    padding:.8em 1em .8em 1.6em;height:280px;overflow-y:auto;font-family:'IBM Plex Mono',monospace;font-size:12px;
+    background-image:radial-gradient(circle, #2a2a30 2.5px, transparent 3px);
+    background-size:100% 20px;background-position:6px top;background-repeat:repeat-y;
+  }
+  .log-line{padding:.15em 0;white-space:pre-wrap;word-break:break-word;}
+  .log-line.info{color:var(--text-dim);}
+  .log-line.success{color:var(--success);}
+  .log-line.error{color:var(--error);}
+  .log-line.warn{color:var(--accent);}
+  .log-time{opacity:.55;margin-right:.5em;}
+
+  .results-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.8em;margin-top:1em;}
+  .result-card{background:var(--panel-2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+  .result-card img{width:100%;aspect-ratio:2/3;object-fit:cover;display:block;background:#000;}
+  .result-card .rc-body{padding:.5em .6em;display:flex;justify-content:space-between;align-items:center;gap:.4em;}
+  .result-card .rc-body span{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .result-card .rc-body a{font-size:11px;white-space:nowrap;}
+
+  dialog{background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:var(--radius);max-width:640px;width:90vw;padding:0;}
+  dialog::backdrop{background:rgba(0,0,0,.55);}
+  dialog .dlg-head{display:flex;justify-content:space-between;align-items:center;padding:1em 1.2em;border-bottom:1px solid var(--border);}
+  dialog .dlg-body{padding:1.2em;max-height:60vh;overflow-y:auto;}
+  dialog pre{white-space:pre-wrap;font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--text-dim);}
+
+  .file-drop{border:1px dashed var(--border);border-radius:var(--radius);padding:1.4em;text-align:center;color:var(--text-dim);font-size:13px;}
+  .file-drop input{margin-top:.6em;}
+  .switch-row{display:flex;align-items:center;gap:.6em;margin-bottom:1em;}
+
+  footer{text-align:center;color:var(--text-dim);font-size:12px;padding:2em 1em 3em;}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none !important;transition:none !important;}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <span class="eyebrow">Outil personnel</span>
+    <h1>Atelier BD — Générateur de planches</h1>
+  </div>
+  <div class="status-strip">
+    <span>Personnages : <b id="statChars">0</b></span>
+    <span>Lieux : <b id="statLocs">0</b></span>
+    <span>Pages : <b id="statPages">0</b></span>
+    <span>Prêtes : <b id="statDone" style="color:var(--success)">0</b></span>
+    <span>Erreurs : <b id="statErrors" style="color:var(--error)">0</b></span>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab-btn active" data-tab="kit"><span class="num">01</span>Kit &amp; réglages</button>
+  <button class="tab-btn" data-tab="chars"><span class="num">02</span>Personnages</button>
+  <button class="tab-btn" data-tab="locs"><span class="num">03</span>Lieux</button>
+  <button class="tab-btn" data-tab="pages"><span class="num">04</span>Pages</button>
+  <button class="tab-btn" data-tab="gen"><span class="num">05</span>Génération</button>
+</nav>
+
+<main>
+
+  <!-- ============ TAB 1 : KIT & REGLAGES ============ -->
+  <section class="panel active" data-panel="kit">
+    <div class="card">
+      <h2><span class="num">01</span>Kit de génération</h2>
+      <p class="help">Le kit décrit ce qui reste identique sur toutes les pages : style graphique, format, règles de composition, ce qu'il faut éviter. Il est envoyé avec chaque page. Format JSON — <a href="examples/kit.example.json" download>télécharger un exemple</a>.</p>
+      <div class="field">
+        <label for="kitFile">Charger un fichier .json</label>
+        <input type="file" id="kitFile" accept="application/json">
+      </div>
+      <div class="field">
+        <label for="kitText">Contenu du kit (JSON)</label>
+        <textarea id="kitText" rows="12" spellcheck="false" placeholder='{"style": "...", "format": "...", "rules": ["..."], "negative_prompt": "...", "continuity_notes": "..."}'></textarea>
+      </div>
+      <div class="row-actions">
+        <button id="btnValidateKit">Valider le JSON</button>
+        <button id="btnSaveKit" class="primary">Enregistrer le kit</button>
+      </div>
+      <p class="help" id="kitStatus" style="margin-top:.8em;"></p>
+    </div>
+
+    <div class="card">
+      <h2><span class="num">01</span>Réglages de génération</h2>
+      <p class="help">Ces valeurs sont utilisées par défaut. Le kit peut les surcharger via ses champs <code>size</code> / <code>quality</code>.</p>
+      <div class="row">
+        <div class="field">
+          <label for="setModel">Modèle</label>
+          <select id="setModel">
+            <option value="gpt-image-1">gpt-image-1</option>
+            <option value="gpt-image-1.5">gpt-image-1.5</option>
+            <option value="gpt-image-1-mini">gpt-image-1-mini</option>
+            <option value="dall-e-2">dall-e-2 (secours)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="setSize">Taille</label>
+          <select id="setSize">
+            <option value="1024x1536">1024x1536 (portrait)</option>
+            <option value="1536x1024">1536x1024 (paysage)</option>
+            <option value="1024x1024">1024x1024 (carré)</option>
+            <option value="auto">auto</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="setQuality">Qualité</label>
+          <select id="setQuality">
+            <option value="high">high</option>
+            <option value="medium">medium</option>
+            <option value="low">low</option>
+            <option value="auto">auto</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="setFidelity">Fidélité aux visages/réf. (input_fidelity)</label>
+          <select id="setFidelity">
+            <option value="high">high (recommandé pour les personnages)</option>
+            <option value="low">low</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="setConcurrency">Générations simultanées</label>
+          <input type="number" id="setConcurrency" min="1" max="6" value="2">
+        </div>
+        <div class="field">
+          <label for="setEndpoint">Endpoint de l'API (proxy)</label>
+          <input type="text" id="setEndpoint" value="/api/generate">
+        </div>
+      </div>
+      <button id="btnSaveSettings" class="primary">Enregistrer les réglages</button>
+    </div>
+  </section>
+
+  <!-- ============ TAB 2 : PERSONNAGES ============ -->
+  <section class="panel" data-panel="chars">
+    <div class="card">
+      <h2><span class="num">02</span>Personnages</h2>
+      <p class="help">Les images sont conservées dans ce navigateur (IndexedDB) : tu ne les téléverses qu'une fois. Chaque page référence un personnage par sa clé (ex. <code>camille</code>).</p>
+      <div class="file-drop">
+        Glisse ou choisis une ou plusieurs images de personnages.
+        <br><input type="file" id="charFiles" accept="image/*" multiple>
+      </div>
+      <div class="ref-grid" id="charGrid"></div>
+    </div>
+  </section>
+
+  <!-- ============ TAB 3 : LIEUX ============ -->
+  <section class="panel" data-panel="locs">
+    <div class="card">
+      <h2><span class="num">03</span>Fiches de lieux <span style="color:var(--text-dim);font-weight:400;font-size:.8em;">(optionnel)</span></h2>
+      <p class="help">Décris chaque lieu récurrent (décor, couleurs, meubles) pour garder une continuité visuelle. Une image de référence est facultative mais recommandée si un lieu revient souvent.</p>
+      <div class="row">
+        <div class="field"><label for="locName">Nom du lieu (ex. appartement_salon)</label><input type="text" id="locName" placeholder="appartement_salon"></div>
+        <div class="field"><label for="locImage">Image de référence (optionnelle)</label><input type="file" id="locImage" accept="image/*"></div>
+      </div>
+      <div class="field"><label for="locDesc">Description du décor</label><textarea id="locDesc" rows="4" placeholder="Canapé gris, murs blancs, grande baie vitrée, tapis bleu..."></textarea></div>
+      <button id="btnAddLoc" class="primary">Ajouter / mettre à jour ce lieu</button>
+      <div class="ref-grid" id="locGrid" style="margin-top:1.2em;"></div>
+    </div>
+  </section>
+
+  <!-- ============ TAB 4 : PAGES ============ -->
+  <section class="panel" data-panel="pages">
+    <div class="card">
+      <h2><span class="num">04</span>Import des pages</h2>
+      <p class="help">
+        Format JSON (tableau d'objets <code>id, characters, location, context, prompt</code> — <a href="examples/pages.example.json" download>exemple</a>)
+        ou feuille Excel/CSV avec les colonnes <code>id | characters | location | context | prompt</code> (personnages séparés par des virgules).
+      </p>
+      <div class="row">
+        <div class="field"><label for="pagesJsonFile">Fichier .json</label><input type="file" id="pagesJsonFile" accept="application/json"></div>
+        <div class="field"><label for="pagesSheetFile">Fichier .xlsx / .csv</label><input type="file" id="pagesSheetFile" accept=".xlsx,.xls,.csv"></div>
+      </div>
+      <p class="help">L'import ajoute les nouvelles pages et met à jour le contenu des pages existantes (même <code>id</code>) sans toucher à leur statut déjà généré.</p>
+      <div class="row-actions">
+        <button id="btnResetStatuses">Remettre toutes les pages « en attente »</button>
+        <button id="btnClearPages" class="danger">Vider la liste des pages</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="num">04</span>Pages (<span id="pagesCount">0</span>)</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Personnages</th><th>Lieu</th><th>Prompt</th><th>Statut</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="pagesTbody"></tbody>
+        </table>
+      </div>
+      <p class="empty-hint" id="pagesEmptyHint">Aucune page importée pour l'instant.</p>
+    </div>
+  </section>
+
+  <!-- ============ TAB 5 : GENERATION ============ -->
+  <section class="panel" data-panel="gen">
+    <div class="card">
+      <h2><span class="num">05</span>Lancer la génération</h2>
+      <p class="help">Le mode simulation n'appelle jamais l'API : il affiche ce qui serait envoyé, page par page. La génération réelle reprend automatiquement là où elle s'est arrêtée (les pages déjà « prêtes » sont ignorées).</p>
+      <div class="gen-actions">
+        <button id="btnSimulate">🔍 Mode simulation</button>
+        <button id="btnRun" class="primary">▶ Lancer / reprendre</button>
+        <button id="btnRetryFailed">🔁 Relancer les échecs</button>
+        <button id="btnForceAll" class="danger">♻ Tout régénérer</button>
+        <button id="btnAbort" disabled>⏹ Arrêter</button>
+      </div>
+      <div class="progress-bar"><div id="progressFill"></div></div>
+      <div class="progress-counts">
+        <span>Total : <b id="pgTotal">0</b></span>
+        <span>Prêtes : <b id="pgDone">0</b></span>
+        <span>En attente : <b id="pgPending">0</b></span>
+        <span>Erreurs : <b id="pgErrors">0</b></span>
+      </div>
+      <div class="log-panel" id="logPanel"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="num">05</span>Résultats</h2>
+      <button id="btnDownloadZip">⬇ Télécharger tout (.zip)</button>
+      <div class="results-grid" id="resultsGrid"></div>
+      <p class="empty-hint" id="resultsEmptyHint">Aucune image générée pour l'instant.</p>
+    </div>
+  </section>
+
+</main>
+
+<dialog id="previewDialog">
+  <div class="dlg-head">
+    <strong id="previewTitle">Aperçu du prompt</strong>
+    <button id="previewClose">Fermer</button>
+  </div>
+  <div class="dlg-body"><pre id="previewContent"></pre></div>
+</dialog>
+
+<footer>Tes images, personnages et pages restent dans ce navigateur (IndexedDB). Rien n'est envoyé nulle part tant que tu ne cliques pas sur « Lancer ».</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  /* ======================================================================
+     IndexedDB — petite couche utilitaire
+  ====================================================================== */
+  const DB_NAME = "bd_gen_db";
+  const DB_VERSION = 1;
+  let dbInstance = null;
+
+  function idbOpen(){
+    if (dbInstance) return Promise.resolve(dbInstance);
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains("characters")) db.createObjectStore("characters", { keyPath: "key" });
+        if (!db.objectStoreNames.contains("locations")) db.createObjectStore("locations", { keyPath: "key" });
+        if (!db.objectStoreNames.contains("pages")) db.createObjectStore("pages", { keyPath: "id" });
+        if (!db.objectStoreNames.contains("kv")) db.createObjectStore("kv", { keyPath: "key" });
+      };
+      req.onsuccess = (e) => { dbInstance = e.target.result; resolve(dbInstance); };
+      req.onerror = (e) => reject(e.target.error);
+    });
+  }
+  async function idbGetAll(store){
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const req = db.transaction(store, "readonly").objectStore(store).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async function idbGet(store, key){
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const req = db.transaction(store, "readonly").objectStore(store).get(key);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async function idbPut(store, value){
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(store, "readwrite");
+      tx.objectStore(store).put(value);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+  async function idbDelete(store, key){
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(store, "readwrite");
+      tx.objectStore(store).delete(key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+  async function idbClear(store){
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(store, "readwrite");
+      tx.objectStore(store).clear();
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  /* ======================================================================
+     Etat en mémoire
+  ====================================================================== */
+  const state = {
+    characters: new Map(),   // key -> {key, displayName, dataUrl, addedAt}
+    locations: new Map(),    // key -> {key, displayName, description, dataUrl, addedAt}
+    pages: [],                // [{id, order, characters:[], location, context, prompt, status, resultDataUrl, error, updatedAt}]
+    kit: {},
+    settings: {
+      model: "gpt-image-1",
+      size: "1024x1536",
+      quality: "high",
+      inputFidelity: "high",
+      concurrency: 2,
+      endpoint: "/api/generate"
+    },
+    logs: []
+  };
+
+  let running = false;
+  let abortFlag = false;
+  const activeControllers = new Map();
+
+  /* ======================================================================
+     Utilitaires
+  ====================================================================== */
+  function esc(s){
+    return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  }
+  function normalizeKey(s){
+    return String(s || "")
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase().trim()
+      .replace(/\s+/g, "_")
+      .replace(/[^a-z0-9_-]/g, "");
+  }
+  function titleCase(s){
+    return String(s || "").replace(/[_-]+/g, " ").replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1));
+  }
+  function normalizeList(v){
+    if (Array.isArray(v)) return v.map(x => String(x).trim()).filter(Boolean);
+    if (typeof v === "string") return v.split(",").map(x => x.trim()).filter(Boolean);
+    return [];
+  }
+  function nowLabel(){
+    const d = new Date();
+    return d.toLocaleTimeString("fr-FR", { hour12: false });
+  }
+  function resizeImageFile(file, maxDim){
+    maxDim = maxDim || 1024;
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(reader.error);
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onerror = () => reject(new Error("Image illisible."));
+        img.onload = () => {
+          let w = img.width, h = img.height;
+          if (w > maxDim || h > maxDim) {
+            if (w >= h) { h = Math.round(h * maxDim / w); w = maxDim; }
+            else { w = Math.round(w * maxDim / h); h = maxDim; }
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = w; canvas.height = h;
+          canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL("image/png"));
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+  async function dataUrlToBlob(dataUrl){
+    const res = await fetch(dataUrl);
+    return res.blob();
+  }
+  function triggerDownload(blob, filename){
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }
+
+  /* ======================================================================
+     Journal (log)
+  ====================================================================== */
+  const logPanel = document.getElementById("logPanel");
+  function log(message, level){
+    level = level || "info";
+    const entry = { ts: Date.now(), message, level };
+    state.logs.push(entry);
+    if (state.logs.length > 500) state.logs.shift();
+    idbPut("kv", { key: "logs", value: state.logs }).catch(() => {});
+    renderLogEntry(entry);
+  }
+  function renderLogEntry(entry){
+    const line = document.createElement("div");
+    line.className = "log-line " + entry.level;
+    const time = new Date(entry.ts).toLocaleTimeString("fr-FR", { hour12: false });
+    line.innerHTML = '<span class="log-time">' + time + '</span>' + esc(entry.message);
+    logPanel.appendChild(line);
+    logPanel.scrollTop = logPanel.scrollHeight;
+  }
+
+  /* ======================================================================
+     Kit — formattage lisible pour le prompt
+  ====================================================================== */
+  function formatKit(kit){
+    if (!kit || Object.keys(kit).length === 0) return "[KIT DE GÉNÉRATION]\n(non défini)";
+    const lines = ["[KIT DE GÉNÉRATION]"];
+    if (kit.style) lines.push("Style graphique : " + kit.style);
+    if (kit.format) lines.push("Format : " + kit.format);
+    if (Array.isArray(kit.rules) && kit.rules.length) {
+      lines.push("Règles de composition :");
+      kit.rules.forEach(r => lines.push("- " + r));
+    }
+    if (kit.continuity_notes) lines.push("Notes de continuité : " + kit.continuity_notes);
+    if (kit.negative_prompt) lines.push("À éviter : " + kit.negative_prompt);
+    const known = ["style", "format", "size", "quality", "rules", "negative_prompt", "continuity_notes"];
+    Object.keys(kit).forEach(k => {
+      if (known.indexOf(k) === -1) {
+        const v = kit[k];
+        lines.push(k + " : " + (typeof v === "string" ? v : JSON.stringify(v)));
+      }
+    });
+    return lines.join("\n");
+  }
+
+  async function assembleRequest(page){
+    const missingRefs = [];
+    const images = []; // [{blob, filename}]
+
+    for (const rawName of page.characters) {
+      const key = normalizeKey(rawName);
+      const char = state.characters.get(key);
+      if (char) {
+        images.push({ blob: await dataUrlToBlob(char.dataUrl), filename: key + ".png" });
+      } else {
+        missingRefs.push("personnage:" + rawName);
+      }
+    }
+
+    let locationText = "";
+    if (page.location) {
+      const locKey = normalizeKey(page.location);
+      const loc = state.locations.get(locKey);
+      if (loc) {
+        locationText = "[LIEU : " + loc.displayName + "]\n" + (loc.description || "");
+        if (loc.dataUrl) {
+          images.push({ blob: await dataUrlToBlob(loc.dataUrl), filename: "lieu_" + locKey + ".png" });
+        }
+      } else {
+        missingRefs.push("lieu:" + page.location);
+      }
+    }
+
+    const parts = [formatKit(state.kit)];
+    if (locationText) parts.push(locationText.trim());
+    if (page.context) parts.push("[CONTEXTE DE LA SCÈNE]\n" + page.context);
+    if (page.characters.length) parts.push("[PERSONNAGES PRÉSENTS]\n" + page.characters.join(", "));
+    parts.push("[INSTRUCTIONS DE LA PAGE]\n" + page.prompt);
+
+    return { prompt: parts.filter(Boolean).join("\n\n"), images, missingRefs };
+  }
+
+  /* ======================================================================
+     Rendu — en-tête / stats
+  ====================================================================== */
+  function renderStats(){
+    document.getElementById("statChars").textContent = state.characters.size;
+    document.getElementById("statLocs").textContent = state.locations.size;
+    document.getElementById("statPages").textContent = state.pages.length;
+    const done = state.pages.filter(p => p.status === "done").length;
+    const errors = state.pages.filter(p => p.status === "error").length;
+    document.getElementById("statDone").textContent = done;
+    document.getElementById("statErrors").textContent = errors;
+  }
+
+  /* ======================================================================
+     Onglets
+  ====================================================================== */
+  document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+      btn.classList.add("active");
+      document.querySelector('.panel[data-panel="' + btn.dataset.tab + '"]').classList.add("active");
+    });
+  });
+
+  /* ======================================================================
+     Onglet Kit & réglages
+  ====================================================================== */
+  const els = {
+    kitFile: document.getElementById("kitFile"),
+    kitText: document.getElementById("kitText"),
+    kitStatus: document.getElementById("kitStatus"),
+    setModel: document.getElementById("setModel"),
+    setSize: document.getElementById("setSize"),
+    setQuality: document.getElementById("setQuality"),
+    setFidelity: document.getElementById("setFidelity"),
+    setConcurrency: document.getElementById("setConcurrency"),
+    setEndpoint: document.getElementById("setEndpoint")
+  };
+
+  document.getElementById("kitFile").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const text = await file.text();
+    els.kitText.value = text;
+    els.kitStatus.textContent = "Fichier chargé. Vérifie puis clique sur « Enregistrer le kit ».";
+  });
+
+  document.getElementById("btnValidateKit").addEventListener("click", () => {
+    try {
+      JSON.parse(els.kitText.value || "{}");
+      els.kitStatus.textContent = "✅ JSON valide.";
+      els.kitStatus.style.color = "var(--success)";
+    } catch (err) {
+      els.kitStatus.textContent = "❌ JSON invalide : " + err.message;
+      els.kitStatus.style.color = "var(--error)";
+    }
+  });
+
+  document.getElementById("btnSaveKit").addEventListener("click", async () => {
+    let kit;
+    try {
+      kit = JSON.parse(els.kitText.value || "{}");
+    } catch (err) {
+      els.kitStatus.textContent = "❌ JSON invalide : " + err.message;
+      els.kitStatus.style.color = "var(--error)";
+      return;
+    }
+    state.kit = kit;
+    await idbPut("kv", { key: "kit", value: kit });
+    els.kitStatus.textContent = "✅ Kit enregistré.";
+    els.kitStatus.style.color = "var(--success)";
+    log("Kit de génération enregistré.", "success");
+  });
+
+  document.getElementById("btnSaveSettings").addEventListener("click", async () => {
+    state.settings.model = els.setModel.value;
+    state.settings.size = els.setSize.value;
+    state.settings.quality = els.setQuality.value;
+    state.settings.inputFidelity = els.setFidelity.value;
+    state.settings.concurrency = Math.max(1, Math.min(6, parseInt(els.setConcurrency.value, 10) || 2));
+    state.settings.endpoint = els.setEndpoint.value.trim() || "/api/generate";
+    await idbPut("kv", { key: "settings", value: state.settings });
+    log("Réglages enregistrés (modèle : " + state.settings.model + ", taille : " + state.settings.size + ", concurrence : " + state.settings.concurrency + ").", "success");
+  });
+
+  /* ======================================================================
+     Onglet Personnages
+  ====================================================================== */
+  const charGrid = document.getElementById("charGrid");
+
+  function renderCharacters(){
+    charGrid.innerHTML = "";
+    if (state.characters.size === 0) {
+      charGrid.innerHTML = '<p class="empty-hint" style="grid-column:1/-1;">Aucun personnage. Ajoute une image ci-dessus.</p>';
+      renderStats();
+      return;
+    }
+    for (const char of state.characters.values()) {
+      const card = document.createElement("div");
+      card.className = "ref-card";
+      card.innerHTML =
+        '<img src="' + char.dataUrl + '" alt="' + esc(char.displayName) + '">' +
+        '<div class="ref-body">' +
+          '<input type="text" class="char-name-input" value="' + esc(char.displayName) + '">' +
+          '<span class="key">clé : ' + esc(char.key) + '</span>' +
+          '<div class="ref-actions"><button class="char-del">Supprimer</button></div>' +
+        '</div>';
+      card.querySelector(".char-name-input").addEventListener("change", (e) => renameCharacter(char.key, e.target.value));
+      card.querySelector(".char-del").addEventListener("click", () => deleteCharacter(char.key));
+      charGrid.appendChild(card);
+    }
+    renderStats();
+  }
+
+  document.getElementById("charFiles").addEventListener("change", async (e) => {
+    const files = Array.from(e.target.files || []);
+    for (const file of files) {
+      try {
+        const dataUrl = await resizeImageFile(file, 1024);
+        const baseName = titleCase(file.name.replace(/\.[^.]+$/, ""));
+        let key = normalizeKey(baseName) || "personnage";
+        let n = 2;
+        while (state.characters.has(key)) { key = normalizeKey(baseName) + "_" + n; n++; }
+        const record = { key, displayName: baseName, dataUrl, addedAt: Date.now() };
+        state.characters.set(key, record);
+        await idbPut("characters", record);
+        log("Personnage ajouté : " + baseName + " (clé : " + key + ").", "success");
+      } catch (err) {
+        log("Erreur lors de l'ajout de l'image " + file.name + " : " + err.message, "error");
+      }
+    }
+    e.target.value = "";
+    renderCharacters();
+  });
+
+  async function renameCharacter(oldKey, newDisplayName){
+    const char = state.characters.get(oldKey);
+    if (!char) return;
+    const newKey = normalizeKey(newDisplayName) || oldKey;
+    if (newKey === oldKey) {
+      char.displayName = newDisplayName;
+      await idbPut("characters", char);
+      renderCharacters();
+      return;
+    }
+    if (state.characters.has(newKey)) {
+      alert("Un personnage utilise déjà la clé « " + newKey + " ». Choisis un autre nom.");
+      renderCharacters();
+      return;
+    }
+    state.characters.delete(oldKey);
+    await idbDelete("characters", oldKey);
+    const updated = { key: newKey, displayName: newDisplayName, dataUrl: char.dataUrl, addedAt: char.addedAt };
+    state.characters.set(newKey, updated);
+    await idbPut("characters", updated);
+    log("Personnage renommé : " + oldKey + " → " + newKey + ". Pense à mettre à jour les pages qui le référencent.", "warn");
+    renderCharacters();
+  }
+
+  async function deleteCharacter(key){
+    if (!confirm("Supprimer ce personnage ?")) return;
+    state.characters.delete(key);
+    await idbDelete("characters", key);
+    renderCharacters();
+  }
+
+  /* ======================================================================
+     Onglet Lieux
+  ====================================================================== */
+  const locGrid = document.getElementById("locGrid");
+  let pendingLocImageDataUrl = null;
+
+  document.getElementById("locImage").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) { pendingLocImageDataUrl = null; return; }
+    pendingLocImageDataUrl = await resizeImageFile(file, 1024);
+  });
+
+  document.getElementById("btnAddLoc").addEventListener("click", async () => {
+    const nameInput = document.getElementById("locName");
+    const descInput = document.getElementById("locDesc");
+    const displayName = nameInput.value.trim();
+    if (!displayName) { alert("Indique un nom de lieu."); return; }
+    const key = normalizeKey(displayName);
+    const existing = state.locations.get(key);
+    const record = {
+      key,
+      displayName,
+      description: descInput.value.trim(),
+      dataUrl: pendingLocImageDataUrl || (existing ? existing.dataUrl : null),
+      addedAt: existing ? existing.addedAt : Date.now()
+    };
+    state.locations.set(key, record);
+    await idbPut("locations", record);
+    log("Lieu enregistré : " + displayName + " (clé : " + key + ").", "success");
+    nameInput.value = ""; descInput.value = "";
+    document.getElementById("locImage").value = "";
+    pendingLocImageDataUrl = null;
+    renderLocations();
+  });
+
+  function renderLocations(){
+    locGrid.innerHTML = "";
+    if (state.locations.size === 0) {
+      locGrid.innerHTML = '<p class="empty-hint" style="grid-column:1/-1;">Aucun lieu enregistré.</p>';
+      renderStats();
+      return;
+    }
+    for (const loc of state.locations.values()) {
+      const card = document.createElement("div");
+      card.className = "ref-card";
+      card.innerHTML =
+        (loc.dataUrl ? '<img src="' + loc.dataUrl + '" alt="' + esc(loc.displayName) + '">' : '<div style="aspect-ratio:1/1;background:var(--panel-2);display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:12px;">Pas d\'image</div>') +
+        '<div class="ref-body">' +
+          '<strong style="font-size:13px;">' + esc(loc.displayName) + '</strong>' +
+          '<span class="key">clé : ' + esc(loc.key) + '</span>' +
+          '<textarea readonly>' + esc(loc.description || "") + '</textarea>' +
+          '<div class="ref-actions"><button class="loc-del">Supprimer</button></div>' +
+        '</div>';
+      card.querySelector(".loc-del").addEventListener("click", async () => {
+        if (!confirm("Supprimer ce lieu ?")) return;
+        state.locations.delete(loc.key);
+        await idbDelete("locations", loc.key);
+        renderLocations();
+      });
+      locGrid.appendChild(card);
+    }
+    renderStats();
+  }
+
+  /* ======================================================================
+     Onglet Pages
+  ====================================================================== */
+  const pagesTbody = document.getElementById("pagesTbody");
+  const pagesEmptyHint = document.getElementById("pagesEmptyHint");
+
+  document.getElementById("pagesJsonFile").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const arr = JSON.parse(text);
+      if (!Array.isArray(arr)) throw new Error("le fichier doit contenir un tableau de pages.");
+      await importPagesArray(arr);
+    } catch (err) {
+      alert("Import impossible : " + err.message);
+      log("Import JSON échoué : " + err.message, "error");
+    }
+    e.target.value = "";
+  });
+
+  document.getElementById("pagesSheetFile").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+      const arr = rows.map(r => {
+        const norm = {};
+        Object.keys(r).forEach(k => { norm[String(k).trim().toLowerCase()] = r[k]; });
+        return {
+          id: norm.id || norm.page || "",
+          characters: norm.characters || norm.personnages || "",
+          location: norm.location || norm.lieu || "",
+          context: norm.context || norm.contexte || "",
+          prompt: norm.prompt || norm.instructions || ""
+        };
+      });
+      await importPagesArray(arr);
+    } catch (err) {
+      alert("Import impossible : " + err.message);
+      log("Import feuille de calcul échoué : " + err.message, "error");
+    }
+    e.target.value = "";
+  });
+
+  async function importPagesArray(arr){
+    let order = state.pages.length;
+    let imported = 0, skipped = 0;
+    for (let i = 0; i < arr.length; i++) {
+      const raw = arr[i] || {};
+      const id = String(raw.id || raw.page || ("page_" + String(i + 1).padStart(3, "0")));
+      const prompt = (raw.prompt || raw.instructions || "").toString().trim();
+      if (!prompt) { skipped++; continue; }
+      const characters = normalizeList(raw.characters || raw.personnages);
+      const location = (raw.location || raw.lieu || "").toString().trim();
+      const context = (raw.context || raw.contexte || "").toString().trim();
+      const existing = state.pages.find(p => p.id === id);
+      if (existing) {
+        existing.characters = characters;
+        existing.location = location;
+        existing.context = context;
+        existing.prompt = prompt;
+        existing.updatedAt = Date.now();
+        await idbPut("pages", serializePage(existing));
+      } else {
+        const page = { id, order: order++, characters, location, context, prompt, status: "pending", resultDataUrl: null, error: null, updatedAt: Date.now() };
+        state.pages.push(page);
+        await idbPut("pages", serializePage(page));
+      }
+      imported++;
+    }
+    log("Import terminé : " + imported + " page(s) traitée(s)" + (skipped ? ", " + skipped + " ignorée(s) (prompt manquant)" : "") + ".", "success");
+    renderPagesTable();
+  }
+
+  function serializePage(p){
+    return { id: p.id, order: p.order, characters: p.characters, location: p.location, context: p.context, prompt: p.prompt, status: p.status, resultDataUrl: p.resultDataUrl, error: p.error, updatedAt: p.updatedAt };
+  }
+
+  function statusBadge(status){
+    const map = { pending: "En attente", running: "En cours…", done: "Prête", error: "Erreur" };
+    return '<span class="badge ' + status + '">' + (map[status] || status) + '</span>';
+  }
+
+  function renderPagesTable(){
+    const sorted = state.pages.slice().sort((a, b) => a.order - b.order);
+    pagesTbody.innerHTML = "";
+    document.getElementById("pagesCount").textContent = state.pages.length;
+    pagesEmptyHint.style.display = state.pages.length ? "none" : "block";
+
+    for (const page of sorted) {
+      const tr = document.createElement("tr");
+      tr.dataset.id = page.id;
+
+      const charsHtml = page.characters.map(c => {
+        const known = state.characters.has(normalizeKey(c));
+        return '<span class="chip' + (known ? "" : " missing") + '">' + esc(c) + '</span>';
+      }).join("") || '<span style="color:var(--text-dim);">—</span>';
+
+      let locHtml = '<span style="color:var(--text-dim);">—</span>';
+      if (page.location) {
+        const known = state.locations.has(normalizeKey(page.location));
+        locHtml = '<span class="chip' + (known ? "" : " missing") + '">' + esc(page.location) + '</span>';
+      }
+
+      tr.innerHTML =
+        '<td class="mono">' + esc(page.id) + '</td>' +
+        '<td>' + charsHtml + '</td>' +
+        '<td>' + locHtml + '</td>' +
+        '<td class="prompt-cell">' + esc(page.prompt.slice(0, 90)) + (page.prompt.length > 90 ? "…" : "") + '</td>' +
+        '<td>' + statusBadge(page.status) + (page.status === "error" && page.error ? '<div style="color:var(--error);font-size:11px;margin-top:.2em;">' + esc(page.error) + '</div>' : "") +
+          (page.status === "done" && page.resultDataUrl ? '<div><img class="thumb" src="' + page.resultDataUrl + '" style="margin-top:.3em;"></div>' : "") +
+        '</td>' +
+        '<td class="row-actions">' +
+          '<button class="act-preview">Aperçu</button>' +
+          '<button class="act-reset">Réinitialiser</button>' +
+          '<button class="act-del">Suppr.</button>' +
+        '</td>';
+
+      tr.querySelector(".act-preview").addEventListener("click", () => previewPage(page));
+      tr.querySelector(".act-reset").addEventListener("click", async () => {
+        page.status = "pending"; page.error = null;
+        await idbPut("pages", serializePage(page));
+        renderPagesTable(); renderProgress();
+      });
+      tr.querySelector(".act-del").addEventListener("click", async () => {
+        if (!confirm("Supprimer la page " + page.id + " ?")) return;
+        state.pages = state.pages.filter(p => p.id !== page.id);
+        await idbDelete("pages", page.id);
+        renderPagesTable(); renderProgress(); renderResults();
+      });
+
+      pagesTbody.appendChild(tr);
+    }
+    renderStats();
+    renderProgress();
+  }
+
+  document.getElementById("btnResetStatuses").addEventListener("click", async () => {
+    if (!confirm("Remettre toutes les pages en attente ? (les images déjà générées sont conservées mais seront ré-proposées à la génération)")) return;
+    for (const p of state.pages) { p.status = "pending"; p.error = null; await idbPut("pages", serializePage(p)); }
+    renderPagesTable();
+    log("Statuts réinitialisés pour toutes les pages.", "warn");
+  });
+
+  document.getElementById("btnClearPages").addEventListener("click", async () => {
+    if (!confirm("Supprimer TOUTES les pages de la liste ? Cette action est irréversible.")) return;
+    state.pages = [];
+    await idbClear("pages");
+    renderPagesTable(); renderProgress(); renderResults();
+    log("Liste des pages vidée.", "warn");
+  });
+
+  /* ======================================================================
+     Aperçu (dialog)
+  ====================================================================== */
+  const previewDialog = document.getElementById("previewDialog");
+  document.getElementById("previewClose").addEventListener("click", () => previewDialog.close());
+
+  async function previewPage(page){
+    const { prompt, images, missingRefs } = await assembleRequest(page);
+    document.getElementById("previewTitle").textContent = "Aperçu — " + page.id;
+    let text = prompt;
+    text += "\n\n--- Images de référence jointes : " + images.length + " ---";
+    if (missingRefs.length) text += "\n⚠ Références manquantes : " + missingRefs.join(", ");
+    document.getElementById("previewContent").textContent = text;
+    previewDialog.showModal();
+  }
+
+  /* ======================================================================
+     Progression / résultats
+  ====================================================================== */
+  function renderProgress(){
+    const total = state.pages.length;
+    const done = state.pages.filter(p => p.status === "done").length;
+    const errors = state.pages.filter(p => p.status === "error").length;
+    const pending = total - done - errors - state.pages.filter(p => p.status === "running").length;
+    document.getElementById("pgTotal").textContent = total;
+    document.getElementById("pgDone").textContent = done;
+    document.getElementById("pgPending").textContent = Math.max(0, pending);
+    document.getElementById("pgErrors").textContent = errors;
+    document.getElementById("progressFill").style.width = total ? Math.round((done / total) * 100) + "%" : "0%";
+  }
+
+  function renderResults(){
+    const grid = document.getElementById("resultsGrid");
+    const doneP = state.pages.filter(p => p.status === "done" && p.resultDataUrl).sort((a, b) => a.order - b.order);
+    grid.innerHTML = "";
+    document.getElementById("resultsEmptyHint").style.display = doneP.length ? "none" : "block";
+    for (const p of doneP) {
+      const card = document.createElement("div");
+      card.className = "result-card";
+      card.innerHTML =
+        '<img src="' + p.resultDataUrl + '" alt="' + esc(p.id) + '">' +
+        '<div class="rc-body"><span>' + esc(p.id) + '</span><a href="' + p.resultDataUrl + '" download="' + esc(p.id) + '.png">⬇</a></div>';
+      grid.appendChild(card);
+    }
+  }
+
+  /* ======================================================================
+     Simulation
+  ====================================================================== */
+  document.getElementById("btnSimulate").addEventListener("click", async () => {
+    const pending = state.pages.slice().sort((a, b) => a.order - b.order);
+    if (!pending.length) { log("Aucune page à simuler.", "warn"); return; }
+    log("— Début de la simulation (aucun appel API) —", "info");
+    for (const page of pending) {
+      const { images, missingRefs } = await assembleRequest(page);
+      log("Page " + page.id, "info");
+      log("→ Personnages : " + (page.characters.join(", ") || "aucun"), "info");
+      if (page.location) log("→ Lieu : " + page.location, "info");
+      log("→ Images de référence jointes : " + images.length, "info");
+      log("→ Prompt chargé (" + page.prompt.length + " caractères)", "info");
+      if (missingRefs.length) log("⚠ Références manquantes : " + missingRefs.join(", "), "warn");
+      log("→ Prêt à envoyer", "info");
+    }
+    log("— Fin de la simulation —", "success");
+  });
+
+  /* ======================================================================
+     Génération réelle
+  ====================================================================== */
+  function updateButtons(){
+    document.getElementById("btnRun").disabled = running;
+    document.getElementById("btnRetryFailed").disabled = running;
+    document.getElementById("btnForceAll").disabled = running;
+    document.getElementById("btnSimulate").disabled = running;
+    document.getElementById("btnAbort").disabled = !running;
+  }
+
+  async function runGeneration(opts){
+    opts = opts || {};
+    if (running) return;
+    const pages = state.pages.slice().sort((a, b) => a.order - b.order).filter(p => {
+      if (opts.onlyFailed) return p.status === "error";
+      if (opts.force) return true;
+      return p.status !== "done";
+    });
+    if (!pages.length) { log("Aucune page à générer avec ce mode.", "warn"); return; }
+
+    running = true; abortFlag = false; updateButtons();
+    log("— Lancement de la génération : " + pages.length + " page(s), concurrence = " + state.settings.concurrency + " —", "info");
+
+    let cursor = 0;
+    const workerCount = Math.min(state.settings.concurrency, pages.length);
+    const workers = [];
+    for (let i = 0; i < workerCount; i++) workers.push(worker());
+
+    async function worker(){
+      while (cursor < pages.length && !abortFlag) {
+        const page = pages[cursor++];
+        await generateOnePage(page);
+      }
+    }
+    await Promise.all(workers);
+
+    running = false; updateButtons();
+    const done = state.pages.filter(p => p.status === "done").length;
+    const errors = state.pages.filter(p => p.status === "error").length;
+    log("— Génération terminée : " + done + " prête(s), " + errors + " erreur(s) —", abortFlag ? "warn" : "success");
+  }
+
+  async function generateOnePage(page){
+    page.status = "running";
+    renderPagesTable(); renderProgress();
+    try {
+      const { prompt, images, missingRefs } = await assembleRequest(page);
+      if (missingRefs.length) log("⚠ Page " + page.id + " : références manquantes → " + missingRefs.join(", "), "warn");
+
+      const fd = new FormData();
+      fd.append("prompt", prompt);
+      fd.append("model", state.settings.model);
+      fd.append("size", state.kit.size || state.settings.size);
+      fd.append("quality", state.kit.quality || state.settings.quality);
+      fd.append("input_fidelity", state.settings.inputFidelity);
+      images.forEach(img => fd.append("image[]", img.blob, img.filename));
+
+      const controller = new AbortController();
+      activeControllers.set(page.id, controller);
+
+      const res = await fetch(state.settings.endpoint || "/api/generate", { method: "POST", body: fd, signal: controller.signal });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data || !data.success) {
+        throw new Error((data && data.error) || ("Erreur HTTP " + res.status));
+      }
+
+      page.status = "done";
+      page.resultDataUrl = "data:image/png;base64," + data.b64;
+      page.error = null;
+      page.updatedAt = Date.now();
+      await idbPut("pages", serializePage(page));
+      log("✅ Page " + page.id + " générée.", "success");
+    } catch (err) {
+      if (err && err.name === "AbortError") {
+        page.status = "pending";
+        log("⏹ Page " + page.id + " annulée.", "warn");
+      } else {
+        page.status = "error";
+        page.error = (err && err.message) || String(err);
+        log("❌ Page " + page.id + " : " + page.error, "error");
+      }
+      await idbPut("pages", serializePage(page));
+    } finally {
+      activeControllers.delete(page.id);
+      renderPagesTable(); renderProgress(); renderResults();
+    }
+  }
+
+  document.getElementById("btnRun").addEventListener("click", () => runGeneration({}));
+  document.getElementById("btnRetryFailed").addEventListener("click", () => runGeneration({ onlyFailed: true }));
+  document.getElementById("btnForceAll").addEventListener("click", () => {
+    if (!confirm("Régénérer TOUTES les pages, y compris celles déjà prêtes ? Cela consommera à nouveau des crédits API.")) return;
+    runGeneration({ force: true });
+  });
+  document.getElementById("btnAbort").addEventListener("click", () => {
+    abortFlag = true;
+    activeControllers.forEach(c => c.abort());
+    log("Arrêt demandé — les pages en cours vont se terminer ou s'annuler.", "warn");
+  });
+
+  document.getElementById("btnDownloadZip").addEventListener("click", async () => {
+    const doneP = state.pages.filter(p => p.status === "done" && p.resultDataUrl);
+    if (!doneP.length) { alert("Aucune image générée à télécharger."); return; }
+    const zip = new JSZip();
+    for (const p of doneP) {
+      const base64 = p.resultDataUrl.split(",")[1];
+      zip.file(p.id + ".png", base64, { base64: true });
+    }
+    const blob = await zip.generateAsync({ type: "blob" });
+    triggerDownload(blob, "bd_pages.zip");
+    log("Archive .zip téléchargée (" + doneP.length + " image(s)).", "success");
+  });
+
+  /* ======================================================================
+     Initialisation
+  ====================================================================== */
+  async function init(){
+    try {
+      const [chars, locs, pages, kitEntry, settingsEntry, logsEntry] = await Promise.all([
+        idbGetAll("characters"),
+        idbGetAll("locations"),
+        idbGetAll("pages"),
+        idbGet("kv", "kit"),
+        idbGet("kv", "settings"),
+        idbGet("kv", "logs")
+      ]);
+
+      chars.forEach(c => state.characters.set(c.key, c));
+      locs.forEach(l => state.locations.set(l.key, l));
+      state.pages = pages;
+
+      if (kitEntry && kitEntry.value) {
+        state.kit = kitEntry.value;
+        els.kitText.value = JSON.stringify(kitEntry.value, null, 2);
+      }
+      if (settingsEntry && settingsEntry.value) {
+        Object.assign(state.settings, settingsEntry.value);
+        els.setModel.value = state.settings.model;
+        els.setSize.value = state.settings.size;
+        els.setQuality.value = state.settings.quality;
+        els.setFidelity.value = state.settings.inputFidelity;
+        els.setConcurrency.value = state.settings.concurrency;
+        els.setEndpoint.value = state.settings.endpoint;
+      }
+      if (logsEntry && Array.isArray(logsEntry.value)) {
+        state.logs = logsEntry.value;
+        state.logs.forEach(renderLogEntry);
+      }
+
+      renderCharacters();
+      renderLocations();
+      renderPagesTable();
+      renderProgress();
+      renderResults();
+      updateButtons();
+      log("Application prête. " + state.pages.length + " page(s), " + state.characters.size + " personnage(s), " + state.locations.size + " lieu(x) chargés depuis ce navigateur.", "info");
+    } catch (err) {
+      log("Erreur d'initialisation : " + err.message, "error");
+    }
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
